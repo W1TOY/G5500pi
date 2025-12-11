@@ -78,7 +78,7 @@ static ROT my_rot;
 
 
 // command line options
-int verbose = RIG_DEBUG_ERR;
+int verbose = RIG_DEBUG_TRACE;
 static int sim_level = DEF_SIM;
 
 // last set_pos
@@ -489,6 +489,20 @@ static int runRotator (FILE *fp)
             fprintf (fp, "RPRT 0\n");
 
 
+        // dump_state, 2
+
+        } else if (strcmp (buf, "2") == 0 || strcmp (buf, "\\dump_state") == 0
+                        || (strcmp (buf+1, "\\dump_state") == 0 && punctOk (buf[0]) == 0)) {
+            float az = 0, el = 0;
+            (*g5500_rot_caps->get_position) (&my_rot, &az, &el);
+            fprintf (fp, "Azimuth: %g\n", az);
+            fprintf (fp, "Elevation: %g\n", el);
+            fprintf (fp, "Min Azimuth: %g\n", g5500_rot_caps->min_az);
+            fprintf (fp, "Max Azimuth: %g\n", g5500_rot_caps->max_az);
+            fprintf (fp, "Min Elevation: %g\n", g5500_rot_caps->min_el);
+            fprintf (fp, "Max Elevation: %g\n", g5500_rot_caps->max_el);
+            fprintf (fp, "RPRT 0\n");
+
         // unrecognized
 
         } else {
@@ -526,7 +540,8 @@ static void startPlainTextHTTP(FILE *fp)
 static int runWeb (FILE *fp)
 {
         char buf[256];
-        char move_dir[10];
+//        char move_dir[10];
+        char move_dir[11];
         char *cmd;
         int is_http = 0;
         float x, y;
