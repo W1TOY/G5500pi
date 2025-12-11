@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>G5500</title>
+
+    <script>
+
+        const DPR = 180.0/Math.PI;              // degrees per radian
+        const RPD = Math.PI/180.0;              // radians per degree
+        const update_dt = 200;                  // poll period, ms
+
+        const cvs_w = 200;                      // canvas width (all same)
+        const cvs_h = 200;                      // canvas height (all same)
+        const cvs_r = 0.40*cvs_w;               // circle radius
+        const dot_r = 4;                        // dot marker radius
+        const font = "10pt Verdana";            // annotation font
+
+        const lbl_col = "white";                // label color
+        const bkg_col = "#505050";              // background color
+        const act_col = "#A0A0A0";              // active area color
+        const grd_col = "#C0C0C0";              // grid color
+        const cmd_col = "#40FF40";              // commanded color
+        const now_col = "red";                  // current location color
+
+        var rot_now_az, rot_now_el;             // current rotator position
+        var rot_cmd_az, rot_cmd_el;             // commanded rotator position
+
+        // handy
+        function geid(id) {
+            return document.getElementById (id);
+        }
+
+        // send cmd to server and hand response to on function, if any
+        function serverCommand (cmd, on) {
+            let xhr = new XMLHttpRequest();
+            xhr.onload = function() {
+                if (xhr.status == 200) {
+                    if (on != undefined)
+                        on(xhr.response);
+                } else
+                    console.log (cmd + ":" +  xhr.statusText);
+            }
+            xhr.open('GET', cmd);
+            xhr.send();
+        }
+
+        // draw canvas with the given id
+        // TODO: draw background once, just update position
+        function drawCanvas (id) {
+
+            // which one
+            var isaz = id.charAt(0) == 'a';
+            var isel = id.charAt(0) == 'e';
+            var issky = id.charAt(0) == 's';
+
+            // get context
+            var cvs = geid(id);
+            var ctx = cvs.getContext('2d');
+
+            // draw background
+            ctx.fillStyle = bkg_col;
+            ctx.fillRect (0, 0, cvs_w, cvs_h);
+
+            // draw active area
+            ctx.lineWidth = 1;
+            if (isaz) {
+
+                // fill circle
+                ctx.beginPath();
+                    ctx.fillStyle = act_col;
+                    ctx.arc (cvs_w/2, cvs_w/2, cvs_r, 0, 2 * Math.PI);
+                ctx.closePath();
+                ctx.fill();
+
+                // draw radial az lines
+                ctx.beginPath();
+                    ctx.strokeStyle = grd_col;
+                    ctx.moveTo (cvs_w/2+cvs_r, cvs_h/2);
+                    ctx.arc (cvs_w/2, cvs_w/2, cvs_r, 0, 2 * Math.PI);
+                    for (var a = 0; a < 360; a += 30) {
+                        ctx.moveTo (cvs_w/2, cvs_h/2);
+                        ctx.lineTo (cvs_w/2 + cvs_r*Math.cos(RPD*a), cvs_h/2 - cvs_r*Math.sin(RPD*a)); 
+                    }
+                ctx.stroke();
+
+                // draw labels
+                ctx.fillStyle = lbl_col;
+                ctx.textAlign = "center";
+                ctx.fillText ("N", cvs_w/2, 10);
+                ctx.fillText ("E", cvs_w-10, cvs_h/2);
+                ctx.fillText ("S", cvs_w/2, cvs_h-10);
+                ctx.fillText ("W", 10, cvs_h/2);
+
+            } else if (isel) {
+
+                // fill semicircle
+                ctx.beginPath();
+                    ctx.fillStyle = act_col;
+                    ctx.arc (cvs_w/2, cvs_h/2, cvs_r, 0, Math.PI, 1);
+                ctx.closePath();
+                ctx.fill();
+
+                // draw radial el lines
+                ctx.beginPath();
+                    ctx.strokeStyle = grd_col;
+                    ctx.moveTo (cvs_w/2+cvs_r, cvs_h/2);
+                    ctx.arc (cvs_w/2, cvs_w/2, cvs_r, 0, Math.PI, 1);
+                    for (var a = 0; a <= 180; a += 30) {
+                        ctx.moveTo (cvs_w/2, cvs_h/2);
+                        ctx.lineTo (cvs_w/2 + cvs_r*Math.cos(RPD*a), cvs_h/2 - cvs_r*Math.sin(RPD*a)); 
+                    }
+                ctx.stroke();
+
+                // draw labels
+                ctx.fillStyle = lbl_col;
+                ctx.textAlign = "center";
+                ctx.fillText ("0", cvs_w-10, cvs_h/2);
+                ctx.fillText ("180", 10, cvs_h/2);
+                ctx.fillText ("90", cvs_w/2, 10);
+
+            } else if (issky) {
+
+                // fill circle
+                ctx.beginPath();
+                    ctx.fillStyle = act_col;
+                    ctx.arc (cvs_w/2, cvs_w/2, cvs_r, 0, 2 * Math.PI);
+                ctx.closePath();
+                ctx.fill();
+
+                // draw az and el lines
+                ctx.beginPath();
+                    ctx.strokeStyle = grd_col;
+                    for (var a = 0; a < 360; a += 30) {
+                        ctx.moveTo (cvs_w/2, cvs_h/2);
+                        ctx.lineTo (cvs_w/2 + cvs_r*Math.cos(RPD*a), cvs_h/2 - cvs_r*Math.sin(RPD*a)); 
+                    }
+                    for (var r = cvs_r/3; r <= cvs_r; r += cvs_r/3) {
+                        ctx.moveTo (cvs_w/2+r, cvs_h/2);
+                        ctx.arc (cvs_w/2, cvs_w/2, r, 0, 2 * Math.PI);
+                    }
+                ctx.stroke();
+
+                // draw labels
+                ctx.fillStyle = lbl_col;
+                ctx.textAlign = "center";
+                ctx.fillText ("N", cvs_w/2, 10);
+                ctx.fillText ("E", cvs_w-10, cvs_h/2);
+                ctx.fillText ("S", cvs_w/2, cvs_h-10);
+                ctx.fillText ("W", 10, cvs_h/2);
+                ctx.fillText ("Z", cvs_w/2, cvs_h/2);
+            }
+
+            // draw current and commanded rotator position
+            ctx.lineWidth = 3;
+            if (isaz) {
+                ctx.beginPath();
+                    ctx.strokeStyle = now_col;
+                    ctx.moveTo (cvs_w/2, cvs_h/2);
+                    ctx.lineTo (cvs_w/2 + cvs_r*Math.sin(rot_now_az), cvs_h/2 - cvs_r*Math.cos(rot_now_az));
+                ctx.stroke();
+                ctx.beginPath();
+                    ctx.strokeStyle = cmd_col;
+                    ctx.moveTo (cvs_w/2, cvs_h/2);
+                    ctx.lineTo (cvs_w/2 + cvs_r*Math.sin(rot_cmd_az), cvs_h/2 - cvs_r*Math.cos(rot_cmd_az));
+                ctx.stroke();
+            } else if (isel) {
+                ctx.beginPath();
+                    ctx.strokeStyle = now_col;
+                    ctx.moveTo (cvs_w/2, cvs_h/2);
+                    ctx.lineTo (cvs_w/2 + cvs_r*Math.cos(rot_now_el), cvs_h/2 - cvs_r*Math.sin(rot_now_el));
+                ctx.stroke();
+                ctx.beginPath();
+                    ctx.strokeStyle = cmd_col;
+                    ctx.moveTo (cvs_w/2, cvs_h/2);
+                    ctx.lineTo (cvs_w/2 + cvs_r*Math.cos(rot_cmd_el), cvs_h/2 - cvs_r*Math.sin(rot_cmd_el));
+                ctx.stroke();
+            } else if (issky) {
+                ctx.beginPath();
+                    ctx.fillStyle = now_col;
+                    var z = cvs_r * (1 - 2*rot_now_el/Math.PI);
+                    ctx.arc (cvs_w/2 + z*Math.sin(rot_now_az),
+                                                cvs_h/2 - z*Math.cos(rot_now_az), dot_r, 0, 2*Math.PI);
+                ctx.fill();
+                ctx.beginPath();
+                    ctx.fillStyle = cmd_col;
+                    var z = cvs_r * (1 - 2*rot_cmd_el/Math.PI);
+                    ctx.arc (cvs_w/2 + z*Math.sin(rot_cmd_az),
+                                                cvs_h/2 - z*Math.cos(rot_cmd_az), dot_r, 0, 2*Math.PI);
+                ctx.fill();
+            }
+        }
+
+        // called when user clicks Set
+        function setAzEl() {
+            rot_cmd_az = RPD*geid('cmd-az').value;
+            rot_cmd_el = RPD*geid('cmd-el').value;
+            serverCommand ("set_pos?az=" + DPR*rot_cmd_az + "&el=" + DPR*rot_cmd_el);
+        }
+
+        // called when user types into the cmd-az input
+        function setAz(e) {
+            if (e.keyCode === 13) {
+                rot_cmd_az = RPD*geid('cmd-az').value;
+                serverCommand ("set_pos?az=" + DPR*rot_cmd_az + "&el=" + DPR*rot_now_el);
+            }
+        }
+
+        // called when user types into the cmd-el input
+        function setEl(e) {
+            if (e.keyCode === 13) {
+                rot_cmd_el = RPD*geid('cmd-el').value;
+                serverCommand ("set_pos?az=" + DPR*rot_now_az + "&el=" + DPR*rot_cmd_el);
+            }
+        }
+
+        // called when user clicks Park
+        function onPark() {
+            serverCommand ("park");
+        }
+
+        // called when user clicks Stop
+        function onStop() {
+            serverCommand ("stop");
+        }
+
+        // called once to initialize page
+        function initPage() {
+
+            // set canvas sizes
+            geid("az-canvas").width = cvs_w;
+            geid("az-canvas").height = cvs_w;
+            geid("el-canvas").width = cvs_w;
+            geid("el-canvas").height = cvs_w;
+            geid("sky-canvas").width = cvs_w;
+            geid("sky-canvas").height = cvs_w;
+
+            geid("Now-label").style = "color:" + now_col;
+            geid("Set-label").style = "color:" + cmd_col;
+            geid("title-row").style = "background-color:" + act_col;
+
+            // get and display rotator name
+            serverCommand ("get_info", function (rsp) {
+                geid('rotname').innerHTML = rsp;
+            });
+
+            // listen to mouse clicks on az canvas to send new az
+            geid("az-canvas").addEventListener ('mousedown', e => {
+                rot_cmd_az = (Math.atan2 (e.offsetX-cvs_w/2, cvs_h/2-e.offsetY) + 2*Math.PI) % (2*Math.PI);
+                geid('cmd-az').value = (DPR*rot_cmd_az).toFixed(1);
+                serverCommand ("set_pos?az=" + DPR*rot_cmd_az + "&el=" + DPR*rot_cmd_el);
+            });
+
+            // listen to mouse clicks on el canvas to send new el
+            geid("el-canvas").addEventListener ('mousedown', e => {
+                if (e.offsetY <= cvs_h/2) {
+                    rot_cmd_el = Math.atan2 (cvs_h/2-e.offsetY, e.offsetX-cvs_w/2);
+                    geid('cmd-el').value = (DPR*rot_cmd_el).toFixed(1);
+                    serverCommand ("set_pos?az=" + DPR*rot_cmd_az + "&el=" + DPR*rot_cmd_el);
+                }
+            });
+
+            // listen to mouse clicks on el canvas to send new az and el
+            geid("sky-canvas").addEventListener ('mousedown', e => {
+                var dx = e.offsetX-cvs_w/2;
+                var dy = cvs_h/2-e.offsetY;
+                var cmd_el = Math.PI/2 * (1 - Math.sqrt(dx*dx + dy*dy)/cvs_r);
+                if (cmd_el >= 0 && cmd_el <= Math.PI/2) {
+                    rot_cmd_az = (Math.atan2 (dx, dy) + 2*Math.PI) % (2*Math.PI);
+                    rot_cmd_el = cmd_el;
+                    geid('cmd-az').value = (DPR*rot_cmd_az).toFixed(1);
+                    geid('cmd-el').value = (DPR*rot_cmd_el).toFixed(1);
+                    serverCommand ("set_pos?az=" + DPR*rot_cmd_az + "&el=" + DPR*rot_cmd_el);
+                }
+            });
+
+            // poll forever to fetch and display current and commanded position
+            function updatePosition() {
+
+                serverCommand ("get_pos", function(rsp) {
+
+                    var azel = rsp.split(/ /);
+                    rot_now_az = RPD*azel[0];
+                    rot_now_el = RPD*azel[1];
+
+                    geid('now-az').innerHTML = (DPR*rot_now_az).toFixed(1);
+                    geid('now-el').innerHTML = (DPR*rot_now_el).toFixed(1);
+                });
+
+                serverCommand ("get_setpos", function(rsp) {
+
+                    var azel = rsp.split(/ /);
+                    rot_cmd_az = RPD*azel[0];
+                    rot_cmd_el = RPD*azel[1];
+
+                    // update input field unless currently in use
+                    if (document.activeElement != geid('cmd-az'))
+                        geid('cmd-az').value = (DPR*rot_cmd_az).toFixed(1);
+                    if (document.activeElement != geid('cmd-el'))
+                        geid('cmd-el').value = (DPR*rot_cmd_el).toFixed(1);
+                });
+
+                // show
+                drawCanvas ("az-canvas");
+                drawCanvas ("el-canvas");
+                drawCanvas ("sky-canvas");
+
+                // repeat
+                setTimeout (updatePosition, update_dt);
+            }
+
+            // start polling
+            setTimeout (updatePosition, update_dt);
+        }
+
+    </script>
+
+</head>
+
+<body onload="initPage()" >
+<center>
+
+<h2 id='rotname'></h2>
+
+<table border="1">
+    <tr>
+        <th> Azimuth </th>
+        <th> Elevation </th>
+        <th> Sky </th>
+    </tr>
+    <tr>
+        <td> <canvas id='az-canvas' ></canvas> </td>
+        <td> <canvas id='el-canvas' ></canvas> </td>
+        <td> <canvas id='sky-canvas' ></canvas> </td>
+    </tr>
+</table>
+
+<p>
+
+<table border="1">
+
+    <tr id='title-row'>
+        <th width='75' ></th>
+        <th width='75' id='Now-label' >Now</th>
+        <th width='75' >
+            <button id='Set-label' onclick="setAzEl()"> Set </button>
+        </th>
+    </tr>
+    <tr>
+        <th>Az</th>
+        <td id='now-az'></td>
+        <td>
+            <input type="text" id="cmd-az" minlength="1" maxlength="6" size="10" onkeypress="setAz(event)">
+        </td>
+    </tr>
+    <tr>
+        <th>El</th>
+        <td id='now-el'></td>
+        <td>
+            <input type="text" id="cmd-el" minlength="1" maxlength="6" size="10" onkeypress="setEl(event)">
+        </td>
+    </tr>
+</table>
+
+<p>
+
+<button style='color:red' onclick="onStop()"> Stop </button>
+&nbsp; &nbsp; &nbsp;
+<button onclick="onPark()"> Park </button>
+
+</body>
+</html>

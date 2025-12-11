@@ -1,0 +1,38 @@
+# build stand-alone G5500 program compatable with rotctld and related IO testing tools
+
+CC = gcc
+CFLAGS = -Wall -O2 -DSTANDALONE_G5500
+LIBS = -lpthread
+
+SRCS = \
+	g5500_direct.c \
+	g5500_sa.c \
+	piADS1015.c \
+	piI2C.c \
+        web.c
+
+OBJS = $(SRCS:.c=.o)
+
+g5500pi: $(OBJS) piGPIO.o
+	$(CC) -o $@ $(OBJS) piGPIO.o $(LIBS)
+
+g5500pi-sys: $(OBJS) piGPIO-sys.o
+	$(CC) -o $@ $(OBJS) piGPIO-sys.o $(LIBS)
+
+piADS1015: piADS1015.o piI2C.o
+	$(CC) -Wall -O2 -D_UNIT_TEST_MAIN piADS1015.c piI2C.c -o piADS1015
+
+piGPIO: piGPIO.o
+	$(CC) -Wall -O2 -D_UNIT_TEST_MAIN piGPIO.c -o piGPIO
+
+piGPIO-sys: piGPIO-sys.o
+	$(CC) -Wall -O2 -D_UNIT_TEST_MAIN piGPIO-sys.c -o piGPIO-sys
+
+web.c: webpage.html
+	./prepweb.pl
+
+all: g5500pi g5500pi-sys piADS1015 piGPIO piGPIO-sys
+
+clean:
+	touch x.o
+	rm -f *.o g5500pi g5500pi-sys piADS1015 piGPIO piGPIO-sys
