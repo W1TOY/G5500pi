@@ -78,7 +78,7 @@ static ROT my_rot;
 
 
 // command line options
-int verbose = RIG_DEBUG_TRACE;
+int verbose = RIG_DEBUG_ERR;
 static int sim_level = DEF_SIM;
 
 // last set_pos
@@ -351,7 +351,7 @@ static int runRotator (FILE *fp)
         int err;
         char p;
 #define MOD_FOR_GPREDICT
-        
+
 #ifndef MOD_FOR_GPREDICT
         // read command
         if (!fgets (buf, sizeof(buf), fp)) {
@@ -366,7 +366,7 @@ static int runRotator (FILE *fp)
         int i = 0;
         while (i < sizeof(buf) - 1) {
             int c = fgetc(fp);
-            printf("read one character = %d \n", c);
+//            printf("read one character = %d \n", c);
             if (c == 112 || c == 83) { // 'p' or 'S' for rotctld get_pos or stop
                 if (i==0) buf[i++] = (char)c; // somehow gpredict seems to send p at the end
                 buf[i++] = (char)'\n';
@@ -388,7 +388,7 @@ static int runRotator (FILE *fp)
         }
         buf[i] = '\0';
 
-        printf("client %d message: %s", fileno(fp), buf); // added to see why message from gpredict doesn't show up
+//        printf("client %d message: %s", fileno(fp), buf); // added to see why message from gpredict doesn't show up
 
         rig_debug (RIG_DEBUG_VERBOSE, "client %d message: %s", fileno(fp), buf);
 #endif
