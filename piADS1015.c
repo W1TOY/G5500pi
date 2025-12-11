@@ -1,4 +1,4 @@
-/* simple I2C interface to read an ADS1015 ADC channel.
+/* simple I2C interface to read an ADS1115 ADC channel.
  *
  * liberally derived from Adafruit_ADS1015.cpp, see https://github.com/adafruit/Adafruit_ADS1X15
  * ADS1015 data sheet: https://www.ti.com/lit/ds/symlink/ads1015.pdf
@@ -62,7 +62,7 @@
 #define ADS1015_REG_CONFIG_CLAT_NONLAT  (0x0000)  // Non-latching comparator (default)
 #define ADS1015_REG_CONFIG_CPOL_ACTVLOW (0x0000)  // ALERT/RDY pin is low when active (default)
 #define ADS1015_REG_CONFIG_CMODE_TRAD   (0x0000)  // Traditional comparator with hysteresis (default)
-#define ADS1015_REG_CONFIG_DR_1600SPS   (0x0080)  // 1600 samples per second (default)
+#define ADS1115_REG_CONFIG_DR_860SPS    (0x00E0)  // 860 samples per second (ADS1115 max)
 #define ADS1015_REG_CONFIG_MODE_SINGLE  (0x0100)  // Power-down single-shot mode (default)
 #define ADS1015_REG_CONFIG_PGA_4_096V   (0x0200)  // +/-4.096V range = Gain 1
 #define ADS1015_REG_CONFIG_PGA_2_048V   (0x0400)  // +/-2.048V range = Gain 2 (default)
@@ -79,7 +79,7 @@
 #define ADS1015_REG_POINTER_CONFIG      (0x01)
 #define ADS1015_REG_POINTER_CONVERT     (0x00)
 
-#define ADS1015_CONVERSIONDELAY         (1)       // ms
+#define ADS1015_CONVERSIONDELAY         (2)       // ms (min 1.2ms for 860SPS)
 
 
 /* read the given ADC channel in single-ended mode.
@@ -88,13 +88,13 @@
  */
 int readADC_SingleEnded (uint8_t i2c_addr, uint16_t channel, uint16_t *data, char ynot[])
 {
-  
-    // Start with default values
+
+     // Start with default values
     uint16_t config = ADS1015_REG_CONFIG_CQUE_NONE    | // Disable the comparator (default val)
                       ADS1015_REG_CONFIG_CLAT_NONLAT  | // Non-latching (default val)
                       ADS1015_REG_CONFIG_CPOL_ACTVLOW | // Alert/Rdy active low   (default val)
                       ADS1015_REG_CONFIG_CMODE_TRAD   | // Traditional comparator (default val)
-                      ADS1015_REG_CONFIG_DR_1600SPS   | // 1600 samples per second (default)
+                      ADS1115_REG_CONFIG_DR_860SPS    | // 860 samples per second
                       ADS1015_REG_CONFIG_MODE_SINGLE;   // Single-shot mode (default)
   
     // Set gain
@@ -134,11 +134,10 @@ int readADC_SingleEnded (uint8_t i2c_addr, uint16_t channel, uint16_t *data, cha
     if (piI2CRead16 (i2c_addr, ADS1015_REG_POINTER_CONVERT, data, ynot) < 0)
         return (-1);
   
-    // result is in upper 12-bits for AD1015
-    *data >>= 4U;
-
+    // ADS1115 is 16-bit, shift down to 12-bit to match ADS1015 scale
+    *data = *data & 0xFFF0;
     // value is actually signed, so it can be slightly negative when near ground potential
-    if (*data > 0x7FF)
+    if (*data > 0x7FFF)
         *data = 0;
 
     // ok
