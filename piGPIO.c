@@ -144,8 +144,8 @@ void piGPIOsetHi (uint8_t p)
 
         gbase[7+p/32] = 1UL << (p%32);
 
-        if (verbose)
-            fprintf (stderr, "GPIO: %s (%d) ok\n", __func__, p);
+//        if (verbose)
+//            fprintf (stderr, "GPIO: %s (%d) ok\n", __func__, p);
 }
 
 /* set the given pin LOW
@@ -159,8 +159,8 @@ void piGPIOsetLo (uint8_t p)
 
         gbase[10+p/32] = 1UL << (p%32);
 
-        if (verbose)
-            fprintf (stderr, "GPIO: %s (%d) ok\n", __func__, p);
+//        if (verbose)
+//            fprintf (stderr, "GPIO: %s (%d) ok\n", __func__, p);
 }
 
 /* set the given pin hi or lo
