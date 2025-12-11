@@ -97,8 +97,8 @@
 #define ADC_CHANNEL_POK         2               // ADS1015 channel for power ok
 #define ADC_I2C_ADDR            0x48            // bus addr after r/w bit shift
 #define ADC_MIN_POK             1000            // minimum ADC when power ok
-#define ADC_AZ_DEADBAND         50              // 
-#define ADC_EL_DEADBAND         50              // roughly +-few deg
+#define ADC_AZ_DEADBAND         50              // even with this big valuge, the error seems to be less than 1 deg
+#define ADC_EL_DEADBAND         50              // 
 
 
 /* RPi GPIO output pins, BCM numbering, active-hi.
