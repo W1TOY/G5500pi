@@ -9,5 +9,6 @@
         #endif
     #endif
 #endif
+#define ISA_PI
 
 #endif  // _ISA_PI_H
