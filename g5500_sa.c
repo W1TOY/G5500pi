@@ -368,9 +368,14 @@ static int runRotator (FILE *fp)
             int c = fgetc(fp);
 //            printf("read one character = %d \n", c);
             if (c == 112 || c == 83) { // 'p' or 'S' for rotctld get_pos or stop
-                if (i==0) buf[i++] = (char)c; // somehow gpredict seems to send p at the end
-                buf[i++] = (char)'\n';
-                break;
+                if (i==0) {
+                    buf[i++] = (char)c; // somehow gpredict seems to send p at the end
+                    break;
+                }
+                else if (buf[0] != '\\') {
+                    buf[i++] = (char)'\n';
+                    break;
+                }
            }
             else if (c == EOF) {
                 if (i == 0) {
@@ -394,7 +399,8 @@ static int runRotator (FILE *fp)
 #endif
 
         // trim trailing \n
-        buf[strlen(buf)-1] = '\0';
+        if (buf[strlen(buf)-1] == '\n')
+            buf[strlen(buf)-1]= '\0';
         rig_debug (RIG_DEBUG_VERBOSE, "RX: %d '%s'\n", (int)strlen(buf), buf);
 
         // prepare stream for writing
