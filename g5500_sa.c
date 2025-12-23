@@ -224,6 +224,12 @@ static FILE *acceptNewClient(int server_socket)
         }
         rig_debug (RIG_DEBUG_VERBOSE, "accept ok on socket %d\n", cli_fd);
 
+        // disable Nagle algorithm to reduce latency for small packets
+        int flag = 1;
+        if (setsockopt(cli_fd, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int)) < 0) {
+            rig_debug (RIG_DEBUG_ERR, "setsockopt(TCP_NODELAY): %s\n", strerror(errno));
+        }
+
         // build FILE *
         FILE *fp = fdopen (cli_fd, "r+");
         if (!fp) {
@@ -372,7 +378,7 @@ static int runRotator (FILE *fp)
                     buf[i++] = (char)c; // somehow gpredict seems to send p at the end
                     break;
                 }
-                else if (buf[0] != '\\') {
+                else if (buf[0] != '\\' && punctOk(buf[0]) != 0) {
                     buf[i++] = (char)'\n';
                     break;
                 }
@@ -399,9 +405,13 @@ static int runRotator (FILE *fp)
 #endif
 
         // trim trailing \n
-        if (buf[strlen(buf)-1] == '\n')
+        if (strlen(buf) > 0 && buf[strlen(buf)-1] == '\n')
             buf[strlen(buf)-1]= '\0';
         rig_debug (RIG_DEBUG_VERBOSE, "RX: %d '%s'\n", (int)strlen(buf), buf);
+
+        // ignore empty lines (e.g. trailing \n from p command)
+        if (strlen(buf) == 0)
+            return (0);
 
         // prepare stream for writing
         fseek (fp, 0, SEEK_CUR);
@@ -414,8 +424,7 @@ static int runRotator (FILE *fp)
             // default protocol
             err = (*g5500_rot_caps->get_position) (&my_rot, &x, &y);
             if (err == RIG_OK) {
-                fprintf (fp, "%g\n", x);
-                fprintf (fp, "%g\n", y);
+                fprintf (fp, "%g\n%g\n", x, y);
             } else {
                 fprintf (fp, "RPRT %d\n", err);
             }
